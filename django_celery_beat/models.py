@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db import models
 from django.db.models import signals
@@ -179,13 +180,25 @@ class CrontabSchedule(models.Model):
         )
 
     @property
-    def schedule(self):
-        return schedules.crontab(minute=self.minute,
-                                 hour=self.hour,
-                                 day_of_week=self.day_of_week,
-                                 day_of_month=self.day_of_month,
-                                 month_of_year=self.month_of_year,
-                                 nowfun=lambda: make_aware(now()))
+    def schedule(self):       
+        if settings.DJANGO_CELERY_BEAT_TZ_AWARE:
+            crontab = TzAwareCrontab(
+                minute=self.minute,
+                hour=self.hour,
+                day_of_week=self.day_of_week,
+                day_of_month=self.day_of_month,
+                month_of_year=self.month_of_year,
+                tz=self.timezone
+            )
+        else:
+            crontab = schedules.crontab(
+                minute=self.minute,
+                hour=self.hour,
+                day_of_week=self.day_of_week,
+                day_of_month=self.day_of_month,
+                month_of_year=self.month_of_year
+            )
+        return crontab
 
     @classmethod
     def from_schedule(cls, schedule):
